@@ -1,2 +1,4 @@
 node_modules
 *rc
+package-lock.json
+.vscode
