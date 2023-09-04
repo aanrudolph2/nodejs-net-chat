@@ -1,13 +1,6 @@
-const remote      = require('electron').remote
-const jsesc       = require('jsesc')
-const ipcRenderer = require('electron').ipcRenderer
-const ips         = remote.require('./utils').ips
-const main        = remote.require('./main')
-const index       = remote.require('./index')
-
 let isOwner = (ip) => ips().includes(ip)
 
-ipcRenderer.on('update-nicks', (sender, data) => {
+window.api.updateNicks((sender, data) => {
   let frag = document.createDocumentFragment()
   nick = Object.keys(data).filter(k => isOwner(data[k].ip))[0]
 
@@ -21,7 +14,7 @@ ipcRenderer.on('update-nicks', (sender, data) => {
   $(selectors.userList).appendChild(frag)
 })
 
-ipcRenderer.on('update-messages', (sender, data) => {
+window.api.updateMessages(async (sender, data) => {
   if(to !== data.from) {
     to = data.from
     $(selectors.topic).textContent = setChatTopic(nick, to)
@@ -29,9 +22,9 @@ ipcRenderer.on('update-messages', (sender, data) => {
 
   if(data.blurred) new Notification(`Message from ${data.from}`, { title: `Message from ${data.from}`, body: data.text })
 
-  let el = createNewConversation($(selectors.conversationTemplate).content, data.from, jsesc(JSON.parse(data.text)))
+  let el = createNewConversation($(selectors.conversationTemplate).content, data.from, await window.api.jsesc(JSON.parse(data.text)))
   $(selectors.chatWrapper).appendChild(el)
-})
+});
 
 $(selectors.userList).addEventListener('click', (e) => {
   let li;
@@ -43,31 +36,31 @@ $(selectors.userList).addEventListener('click', (e) => {
     $(selectors.chatBoxInputWrapper).classList.add('show')
 
     to = li.dataset.id
-    main.initiateExchange(nick, to, () => {
+    window.api.initiateExchange(nick, to, () => {
       $(selectors.topic).textContent = setChatTopic(nick, to)
     })
   }
 })
 
-$(selectors.submitButton).addEventListener('click', () => {
+$(selectors.submitButton).addEventListener('click', async () => {
   let value = $(selectors.inputBox).value;
 
   if(!(value && to && nick)) return
 
-  main.sendMessage(nick, to, jsesc(value))
+  window.api.sendMessage(nick, to, await window.api.jsesc(value))
 
-  let el = createNewConversation($(selectors.conversationTemplate).content, nick, jsesc(value))
+  let el = createNewConversation($(selectors.conversationTemplate).content, nick, await window.api.jsesc(value))
   $(selectors.chatWrapper).appendChild(el)
   $(selectors.inputBox).value = ''
 })
 
 window.onload = function() {
-  index.getUser().then(name => {
-    nick = jsesc(name)
+  window.api.getUser().then(async name => {
+    nick = await window.api.jsesc(name)
     $(selectors.userName).textContent = nick
   }).then(() => {
-    return Promise.all([main.userServer(), main.broadCastServer(nick)])
-  }).then(() => main.setUp())
+    return Promise.all([window.api.userServer(), window.api.broadCastServer(nick)])
+  }).then(() => window.api.setUp())
     .then(() => {
       if(window.location.hash) routeChange(window.location.hash)
     })
@@ -82,9 +75,9 @@ $(selectors.changeNameForm).addEventListener('submit', (e) => {
   let value = $(selectors.changeName).value
 
   if(value) {
-    index.getUser(value).then(name => {
-      main.updateNick(nick, name)
-      nick = jsesc(name)
+    window.api.getUser(value).then(async name => {
+      window.api.updateNick(nick, name)
+      nick = await window.api.jsesc(name)
     }).then(() => {
       routeChange('#chat-window')
     })

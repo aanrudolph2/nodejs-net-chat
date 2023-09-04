@@ -2,21 +2,25 @@
 
 const net = require('net')
 const dgram = require('dgram');
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, ipcMain } = require('electron')
+const path = require('path');
 const createStore = require('./store').createStore
 const Utils = require('./utils')
 const DeffMan = require('./lib/dfh')
 const DHT = require('./lib/dht')
 const Server = require('./lib/server')
-const vault = require('./lib/vault')
+const vault = require('./lib/vault');
+const jsesc = require('jsesc');
 const appConfig = require('./package.json').appConfig
 const PORT = Utils.normalizePort(appConfig.appPort)
-const BROPORT = Utils.normalizePort(appConfig.broadcastServerPort)
+const clientPort  = Utils.normalizePort(appConfig.broadcastClientPort)
+const serverPort  = Utils.normalizePort(appConfig.broadcastServerPort)
+const broadCastIp = appConfig.broadcastIp
 
 let nicks = createStore('nick')
 let mainWindow = null, server, bServer, nick, blurred = false
 
-function getUser(name) {
+function getUser(event, name) {
     let server, broadCastServer, nick;
 
     return Utils.getUserName(name).then((data) => JSON.parse(data)).catch(e => console.log(e))
@@ -42,7 +46,10 @@ function echoPresence(message) {
 function createWindow() {
     mainWindow = new BrowserWindow({
         height: 600,
-        width: 800
+        width: 800,
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.js')
+        }
     })
 
     mainWindow.loadFile('app/views/index.html')
@@ -62,6 +69,15 @@ function createWindow() {
     mainWindow.on('focus', () => {
         blurred = false
     })
+
+    ipcMain.handle('userServer', userServer);
+    ipcMain.handle('broadCastServer', broadCastServer);
+    ipcMain.handle('updateNick', updateNick);
+    ipcMain.handle('setUp', setUp);
+    ipcMain.handle('initiateExchange', initiateExchange);
+    ipcMain.handle('sendMessage', sendMessage);
+    ipcMain.handle('getUser', getUser);
+    ipcMain.handle('jsesc', (...args) => jsesc(...args.slice(1)));
 }
 app.on('ready', createWindow)
 
@@ -162,7 +178,7 @@ function parseBroadcastMessage(msg, rinfo, nick) {
     }
 }
 
-exports.broadCastServer = function (name) {
+let broadCastServer = function (event, name) {
     nick = name
 
     if (bServer) return Promise.resolve(bServer)
@@ -176,19 +192,19 @@ exports.broadCastServer = function (name) {
             echoPresence({ nick: nick, type: 'leave' })
         })
 
-        bServer.bind(BROPORT, () => {
-            console.log('broadcast server listening on PORT ', BROPORT)
+        bServer.bind(serverPort, () => {
+            console.log('broadcast server listening on PORT ', serverPort)
             res()
         })
     })
 }
 
 
-exports.setUp = function () {
+let setUp = function (event) {
     return echoPresence({ nick: nick, type: 'nick' }).catch(e => console.log(e))
 }
 
-exports.userServer = function () {
+let userServer = function (event) {
     if (server) return Promise.resolve(server)
 
     return new Promise(res => {
@@ -220,7 +236,7 @@ exports.userServer = function () {
     })
 }
 
-exports.initiateExchange = function (from, to, cb) {
+let initiateExchange = function (event, from, to, cb) {
     let alice = new DeffMan
 
     const fromIp = nicks.get(from)
@@ -233,7 +249,7 @@ exports.initiateExchange = function (from, to, cb) {
     if (toIp && net.isIP(toIp.ip)) sendClientMessage(message, toIp.ip, cb)
 }
 
-exports.updateNick = function (nick, newNick) {
+let updateNick = function (event, nick, newNick) {
     let fromIp = nicks.get(nick)
 
     if (fromIp) {
@@ -241,7 +257,7 @@ exports.updateNick = function (nick, newNick) {
     }
 }
 
-exports.sendMessage = function (from_name, to_name, value) {
+let sendMessage = function (event, from_name, to_name, value) {
     if (nicks) {
         const to = nicks.get(to_name)
         const from = nicks.get(from_name)

@@ -21,6 +21,6 @@
     "broadcastIp": "192.168.1.255",
     "broadcastServerPort": "5123",
     "broadcastClientPort": "5124",
-    "appPort": "5000"
+    "appPort": "5001"
   }
 }
