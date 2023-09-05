@@ -82,7 +82,8 @@ function createWindow() {
 app.on('ready', createWindow)
 
 app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit()
+    if (server) server.close()
+    if (bServer) bServer.close()
 })
 
 app.on('before-quit', () => {
@@ -183,7 +184,7 @@ let broadCastServer = function (event, name) {
 
     if (bServer) return Promise.resolve(bServer)
 
-    return new Promise(res => {
+    return new Promise((res, rej) => {
         bServer = new Server()
 
         bServer.on('message', (msg, rinfo) => parseBroadcastMessage(msg, rinfo, nick))
@@ -191,7 +192,7 @@ let broadCastServer = function (event, name) {
         bServer.on('close', () => {
             echoPresence({ nick: nick, type: 'leave' })
         })
-
+        bServer.on('error', err => rej(err));
         bServer.bind(serverPort, () => {
             console.log('broadcast server listening on PORT ', serverPort)
             res()
@@ -207,7 +208,7 @@ let setUp = function (event) {
 let userServer = function (event) {
     if (server) return Promise.resolve(server)
 
-    return new Promise(res => {
+    return new Promise((res, rej) => {
         let len;
         let buff = Buffer.from('');
         let address;
@@ -229,6 +230,7 @@ let userServer = function (event) {
                     len = 0
                 }
             })
+            sock.on('error', err => rej(err))
         }).listen(PORT, () => {
             console.log('user server listening on PORT ', PORT)
             res()
