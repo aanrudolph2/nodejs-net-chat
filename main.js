@@ -78,6 +78,7 @@ function createWindow() {
     ipcMain.handle('sendMessage', sendMessage);
     ipcMain.handle('getUser', getUser);
     ipcMain.handle('jsesc', (...args) => jsesc(...args.slice(1)));
+    ipcMain.handle('ips', () => {return Utils.ips()})
 }
 app.on('ready', createWindow)
 
@@ -87,8 +88,8 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
-    if (server) server.close()
-    if (bServer) bServer.close()
+    //if (server) server.close()
+    //if (bServer) bServer.close()
 })
 
 function parseUserMessage(msg, rinfo) {
@@ -194,7 +195,7 @@ let broadCastServer = function (event, name) {
         })
         bServer.on('error', err => rej(err));
         bServer.bind(serverPort, () => {
-            console.log('broadcast server listening on PORT ', serverPort)
+            console.log('broadcast server listening on PORT ', serverPort, true)
             res()
         })
     })

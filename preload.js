@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld('api', {
     jsesc: (...args) => {
         return ipcRenderer.invoke('jsesc', ...args)
     },
+    ips : (...args) => {
+        return ipcRenderer.invoke('ips');
+    },
     updateNicks: (callback) => ipcRenderer.on('update-nicks', callback),
     updateMessages: (callback) => ipcRenderer.on('update-messages', callback)
 });

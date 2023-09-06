@@ -1,4 +1,5 @@
-let isOwner = (ip) => ips().includes(ip)
+let ips = [];
+let isOwner = (ip) => ips.includes(ip)
 
 window.api.updateNicks((sender, data) => {
   let frag = document.createDocumentFragment()
@@ -57,6 +58,7 @@ $(selectors.submitButton).addEventListener('click', async () => {
 window.onload = function() {
   window.api.getUser().then(async name => {
     nick = await window.api.jsesc(name)
+    ips = await window.api.ips();
     $(selectors.userName).textContent = nick
   }).then(() => {
     return Promise.all([window.api.userServer(), window.api.broadCastServer(nick)])
